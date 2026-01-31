@@ -8,7 +8,7 @@ st.set_page_config(
 )
 
 # App title
-st.title("📷 Teachable Machine – Webcam Classifier")
+st.title(" Teachable Machine – Webcam Classifier")
 st.write("Click **Start** to turn on the webcam and **Stop** to turn it off.")
 
 # HTML + JavaScript
