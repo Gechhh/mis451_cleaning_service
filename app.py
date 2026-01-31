@@ -4,157 +4,202 @@ from PIL import Image
 import base64
 from io import BytesIO
 
+# --------------------------------------------------
 # Page config
+# --------------------------------------------------
 st.set_page_config(
-    page_title="Teachable Machine Classifier",
-    layout="wide"
+    page_title="Teachable Machine",
+    page_icon="🎯",
+    layout="centered"
 )
 
-# App title
-st.title("🎯 Teachable Machine – Image Classifier")
+st.title("Teachable Machine")
+st.caption("Minimal image classification demo")
 
-# Create tabs for different input methods
-tab1, tab2 = st.tabs(["📷 Webcam", "📁 Upload Image"])
+# --------------------------------------------------
+# Tabs
+# --------------------------------------------------
+tab1, tab2 = st.tabs(["Webcam", "Upload Image"])
 
+# ==================================================
+# TAB 1 — WEBCAM
+# ==================================================
 with tab1:
-    st.write("Click **Start** to turn on the webcam and **Stop** to turn it off.")
-    
-    # HTML + JavaScript for webcam
-    html_code = """
+    st.write("Start the webcam to classify objects in real time.")
+
+    webcam_html = """
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Teachable Machine Image Model</title>
+
         <style>
             body {
-                font-family: Arial, sans-serif;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #fafafa;
+                color: #111;
+                margin: 0;
+                padding: 20px;
+            }
+
+            .card {
+                background: #ffffff;
+                border-radius: 12px;
+                padding: 24px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                max-width: 420px;
+                margin: auto;
                 text-align: center;
             }
+
+            h3 {
+                margin-top: 0;
+                margin-bottom: 20px;
+                font-size: 20px;
+                font-weight: 600;
+            }
+
             button {
-                padding: 10px 22px;
-                font-size: 16px;
-                margin: 10px;
-                cursor: pointer;
-                border-radius: 6px;
+                padding: 10px 18px;
+                font-size: 14px;
+                border-radius: 8px;
                 border: none;
-            }
-            .start {
-                background-color: #2ecc71;
+                cursor: pointer;
+                margin: 6px;
+                background: #111827;
                 color: white;
             }
-            .stop {
-                background-color: #e74c3c;
-                color: white;
+
+            button.secondary {
+                background: #e5e7eb;
+                color: #111827;
             }
+
             #label-container div {
-                font-size: 18px;
-                margin: 6px 0;
+                padding: 10px 14px;
+                margin: 8px 0;
+                border-radius: 8px;
+                background: #f3f4f6;
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+            }
+
+            .confidence {
+                font-weight: 600;
+            }
+
+            .muted {
+                color: #6b7280;
+                font-size: 13px;
+                margin-top: 12px;
             }
         </style>
     </head>
+
     <body>
+        <div class="card">
+            <h3>Webcam Prediction</h3>
 
-    <h3>Webcam Prediction</h3>
+            <button onclick="startWebcam()">Start</button>
+            <button class="secondary" onclick="stopWebcam()">Stop</button>
 
-    <button class="start" onclick="startWebcam()">▶ Start</button>
-    <button class="stop" onclick="stopWebcam()">⏹ Stop</button>
+            <div id="webcam-container" style="margin-top:20px;"></div>
+            <div id="label-container"></div>
 
-    <div id="webcam-container"></div>
-    <div id="label-container"></div>
+            <div class="muted">Allow camera access when prompted</div>
+        </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
-    <script type="text/javascript">
-        const URL = "https://teachablemachine.withgoogle.com/models/X17Jat3V8/";
+        <script>
+            const URL = "https://teachablemachine.withgoogle.com/models/X17Jat3V8/";
 
-        let model, webcam, labelContainer, maxPredictions;
-        let isRunning = false;
+            let model, webcam, labelContainer, maxPredictions;
+            let running = false;
 
-        async function startWebcam() {
-            if (isRunning) return;
+            async function startWebcam() {
+                if (running) return;
 
-            const modelURL = URL + "model.json";
-            const metadataURL = URL + "metadata.json";
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
 
-            model = await tmImage.load(modelURL, metadataURL);
-            maxPredictions = model.getTotalClasses();
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
 
-            webcam = new tmImage.Webcam(224, 224, true);
-            await webcam.setup();
-            await webcam.play();
+                webcam = new tmImage.Webcam(224, 224, true);
+                await webcam.setup();
+                await webcam.play();
 
-            isRunning = true;
-            window.requestAnimationFrame(loop);
+                running = true;
+                window.requestAnimationFrame(loop);
 
-            document.getElementById("webcam-container").innerHTML = "";
-            document.getElementById("webcam-container").appendChild(webcam.canvas);
+                document.getElementById("webcam-container").innerHTML = "";
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
 
-            labelContainer = document.getElementById("label-container");
-            labelContainer.innerHTML = "";
-
-            for (let i = 0; i < maxPredictions; i++) {
-                labelContainer.appendChild(document.createElement("div"));
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = "";
             }
-        }
 
-        async function loop() {
-            if (!isRunning) return;
-
-            webcam.update();
-            await predict();
-            window.requestAnimationFrame(loop);
-        }
-
-        async function predict() {
-            const prediction = await model.predict(webcam.canvas);
-            for (let i = 0; i < maxPredictions; i++) {
-                labelContainer.childNodes[i].innerHTML =
-                    prediction[i].className + ": " +
-                    prediction[i].probability.toFixed(2);
+            async function loop() {
+                if (!running) return;
+                webcam.update();
+                await predict();
+                window.requestAnimationFrame(loop);
             }
-        }
 
-        function stopWebcam() {
-            if (!isRunning) return;
+            async function predict() {
+                const prediction = await model.predict(webcam.canvas);
 
-            isRunning = false;
-            webcam.stop();
+                labelContainer.innerHTML = "";
 
-            document.getElementById("webcam-container").innerHTML = "";
-            document.getElementById("label-container").innerHTML =
-                "<em>Webcam stopped</em>";
-        }
-    </script>
+                prediction
+                    .sort((a, b) => b.probability - a.probability)
+                    .forEach(p => {
+                        const row = document.createElement("div");
+                        row.innerHTML = `
+                            <span>${p.className}</span>
+                            <span class="confidence">${(p.probability * 100).toFixed(1)}%</span>
+                        `;
+                        labelContainer.appendChild(row);
+                    });
+            }
 
+            function stopWebcam() {
+                if (!running) return;
+                running = false;
+                webcam.stop();
+                document.getElementById("webcam-container").innerHTML = "";
+                document.getElementById("label-container").innerHTML = "<div class='muted'>Webcam stopped</div>";
+            }
+        </script>
     </body>
     </html>
     """
-    
-    components.html(html_code, height=600)
 
+    components.html(webcam_html, height=550)
+
+# ==================================================
+# TAB 2 — IMAGE UPLOAD
+# ==================================================
 with tab2:
-    st.write("Upload an image to classify it using your Teachable Machine model.")
-    
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        # Create two columns for layout
-        col1, col2 = st.columns([1.2, 1])
-        
+    st.write("Upload an image to classify it.")
+
+    uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
+
+    if uploaded_file:
+        col1, col2 = st.columns([1, 1])
+
         with col1:
-            # Display the uploaded image
             image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded Image", use_container_width=True)
-        
+            st.image(image, use_container_width=True)
+
         with col2:
-            # Convert image to base64
             buffered = BytesIO()
             image.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode()
-            
-            # HTML for image prediction with better styling
+
             upload_html = f"""
             <!DOCTYPE html>
             <html>
@@ -162,196 +207,100 @@ with tab2:
                 <meta charset="UTF-8">
                 <style>
                     body {{
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                        background: #fafafa;
                         margin: 0;
                         padding: 20px;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        min-height: 100vh;
                     }}
-                    
-                    .container {{
+
+                    .card {{
                         background: white;
-                        border-radius: 15px;
-                        padding: 30px;
-                        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                        border-radius: 12px;
+                        padding: 24px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                        max-width: 360px;
+                        margin: auto;
                     }}
-                    
+
                     h3 {{
-                        color: #333;
                         margin-top: 0;
-                        margin-bottom: 25px;
-                        font-size: 24px;
+                        font-size: 18px;
                         text-align: center;
-                        border-bottom: 3px solid #667eea;
-                        padding-bottom: 15px;
                     }}
-                    
-                    #label-container {{
-                        margin-top: 20px;
-                    }}
-                    
+
                     #label-container div {{
-                        font-size: 16px;
-                        margin: 12px 0;
-                        padding: 15px 20px;
-                        border-radius: 10px;
-                        transition: all 0.3s ease;
+                        padding: 10px 14px;
+                        margin: 8px 0;
+                        border-radius: 8px;
+                        background: #f3f4f6;
                         display: flex;
                         justify-content: space-between;
-                        align-items: center;
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                        font-size: 14px;
                     }}
-                    
-                    #label-container div:hover {{
-                        transform: translateX(5px);
-                    }}
-                    
-                    .loading {{
-                        color: #666;
-                        font-style: italic;
-                        text-align: center;
-                        padding: 30px;
-                        background: #f8f9fa;
-                        border-radius: 10px;
-                    }}
-                    
-                    .spinner {{
-                        border: 3px solid #f3f3f3;
-                        border-top: 3px solid #667eea;
-                        border-radius: 50%;
-                        width: 30px;
-                        height: 30px;
-                        animation: spin 1s linear infinite;
-                        margin: 20px auto;
-                    }}
-                    
-                    @keyframes spin {{
-                        0% {{ transform: rotate(0deg); }}
-                        100% {{ transform: rotate(360deg); }}
-                    }}
-                    
-                    .class-name {{
+
+                    .confidence {{
                         font-weight: 600;
-                        color: #333;
                     }}
-                    
-                    .percentage {{
-                        font-weight: bold;
-                        font-size: 18px;
-                    }}
-                    
-                    .progress-bar {{
-                        height: 8px;
-                        background: #e0e0e0;
-                        border-radius: 10px;
-                        overflow: hidden;
-                        margin-top: 8px;
-                    }}
-                    
-                    .progress-fill {{
-                        height: 100%;
-                        border-radius: 10px;
-                        transition: width 0.5s ease;
+
+                    .muted {{
+                        color: #6b7280;
+                        font-size: 13px;
+                        text-align: center;
                     }}
                 </style>
             </head>
+
             <body>
-
-            <div class="container">
-                <h3>🎯 Prediction Results</h3>
-                <div id="label-container" class="loading">
-                    <div class="spinner"></div>
-                    Analyzing image...
+                <div class="card">
+                    <h3>Prediction</h3>
+                    <div id="label-container" class="muted">Analyzing…</div>
                 </div>
-            </div>
 
-            <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
-            <script type="text/javascript">
-                const URL = "https://teachablemachine.withgoogle.com/models/X17Jat3V8/";
-                
-                // Color palette for predictions
-                const colors = [
-                    {{bg: '#4CAF50', text: '#ffffff'}},  // Green for top
-                    {{bg: '#2196F3', text: '#ffffff'}},  // Blue
-                    {{bg: '#FF9800', text: '#ffffff'}},  // Orange
-                    {{bg: '#9C27B0', text: '#ffffff'}},  // Purple
-                    {{bg: '#607D8B', text: '#ffffff'}}   // Blue Grey
-                ];
-                
-                async function predictImage() {{
-                    const modelURL = URL + "model.json";
-                    const metadataURL = URL + "metadata.json";
-                    
-                    const model = await tmImage.load(modelURL, metadataURL);
-                    const maxPredictions = model.getTotalClasses();
-                    
-                    // Create image element from base64
-                    const img = new Image();
-                    img.src = "data:image/png;base64,{img_str}";
-                    
-                    await new Promise((resolve) => {{
-                        img.onload = resolve;
-                    }});
-                    
-                    // Make prediction
-                    const prediction = await model.predict(img);
-                    
-                    // Display results
-                    const labelContainer = document.getElementById("label-container");
-                    labelContainer.innerHTML = "";
-                    labelContainer.className = "";
-                    
-                    // Sort predictions by probability (highest first)
-                    prediction.sort((a, b) => b.probability - a.probability);
-                    
-                    for (let i = 0; i < maxPredictions; i++) {{
-                        const div = document.createElement("div");
-                        const percentage = (prediction[i].probability * 100).toFixed(1);
-                        const color = colors[i % colors.length];
-                        
-                        div.style.background = color.bg;
-                        div.style.color = color.text;
-                        
-                        if (i === 0) {{
-                            div.style.boxShadow = '0 5px 15px rgba(76, 175, 80, 0.4)';
-                            div.style.transform = 'scale(1.02)';
-                        }}
-                        
-                        div.innerHTML = `
-                            <span class="class-name">${{prediction[i].className}}</span>
-                            <span class="percentage">${{percentage}}%</span>
-                        `;
-                        
-                        // Add progress bar
-                        const progressBar = document.createElement("div");
-                        progressBar.className = "progress-bar";
-                        progressBar.style.marginTop = "10px";
-                        
-                        const progressFill = document.createElement("div");
-                        progressFill.className = "progress-fill";
-                        progressFill.style.width = percentage + "%";
-                        progressFill.style.background = "rgba(255, 255, 255, 0.5)";
-                        
-                        progressBar.appendChild(progressFill);
-                        div.appendChild(progressBar);
-                        
-                        labelContainer.appendChild(div);
+                <script>
+                    const URL = "https://teachablemachine.withgoogle.com/models/X17Jat3V8/";
+
+                    async function predictImage() {{
+                        const model = await tmImage.load(
+                            URL + "model.json",
+                            URL + "metadata.json"
+                        );
+
+                        const img = new Image();
+                        img.src = "data:image/png;base64,{img_str}";
+                        await new Promise(resolve => img.onload = resolve);
+
+                        const prediction = await model.predict(img);
+                        const container = document.getElementById("label-container");
+                        container.innerHTML = "";
+
+                        prediction
+                            .sort((a, b) => b.probability - a.probability)
+                            .forEach(p => {{
+                                const row = document.createElement("div");
+                                row.innerHTML = `
+                                    <span>${{p.className}}</span>
+                                    <span class="confidence">${{(p.probability * 100).toFixed(1)}}%</span>
+                                `;
+                                container.appendChild(row);
+                            }});
                     }}
-                }}
-                
-                predictImage();
-            </script>
 
+                    predictImage();
+                </script>
             </body>
             </html>
             """
-            
-            components.html(upload_html, height=600, scrolling=False)
-    else:
-        st.info("👆 Upload an image to get started!")
 
-# Add footer
+            components.html(upload_html, height=450)
+
+    else:
+        st.info("Upload an image to begin")
+
+# --------------------------------------------------
+# Footer
+# --------------------------------------------------
 st.markdown("---")
-st.markdown("**Note:** Both modes use the same Teachable Machine model for predictions.")
+st.caption("Uses the same Teachable Machine model for webcam and uploads.")
