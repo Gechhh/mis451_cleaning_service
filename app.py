@@ -6,7 +6,7 @@ from io import BytesIO
 
 # Page config
 st.set_page_config(
-    page_title="Teachable Machine Classifier",
+    page_title="Cleansing Service",
     layout="centered"
 )
 
