@@ -8,9 +8,10 @@ st.set_page_config(
 )
 
 # App title
-st.title("📷 Teachable Machine – Webcam & Image Upload Classifier")
-st.write("Use **Webcam** or **Upload an Image** to classify.")
+st.title(" Teachable Machine – Webcam Classifier")
+st.write("Click **Start** to turn on the webcam and **Stop** to turn it off.")
 
+# HTML + JavaScript
 html_code = """
 <!DOCTYPE html>
 <html>
@@ -42,28 +43,16 @@ html_code = """
             font-size: 18px;
             margin: 6px 0;
         }
-        img {
-            max-width: 300px;
-            margin-top: 10px;
-        }
     </style>
 </head>
 <body>
 
 <h3>Teachable Machine Image Model</h3>
 
-<!-- Webcam buttons -->
-<button class="start" onclick="startWebcam()">▶ Start Webcam</button>
-<button class="stop" onclick="stopWebcam()">⏹ Stop Webcam</button>
-
-<br><br>
-
-<!-- Upload image -->
-<input type="file" accept="image/*" onchange="handleImageUpload(event)">
-<br>
+<button class="start" onclick="startWebcam()">▶ Start</button>
+<button class="stop" onclick="stopWebcam()">⏹ Stop</button>
 
 <div id="webcam-container"></div>
-<img id="uploaded-image" />
 <div id="label-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
@@ -75,46 +64,43 @@ html_code = """
     let model, webcam, labelContainer, maxPredictions;
     let isRunning = false;
 
-  async function handleImageUpload(event) {
-    await loadModel();   // Load model if not already loaded
-
-    stopWebcam();        // Stop webcam if running
-
-    const img = document.getElementById("uploaded-image");
-    img.src = URL.createObjectURL(event.target.files[0]);
-    img.style.display = "block";
-
-    img.onload = async () => {
-        await predict(img);  // ✅ Here the uploaded image is sent to the model
-    };
-}
-
-
     async function startWebcam() {
         if (isRunning) return;
 
-        await loadModel();
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
         webcam = new tmImage.Webcam(224, 224, true);
         await webcam.setup();
         await webcam.play();
+
         isRunning = true;
         window.requestAnimationFrame(loop);
 
-        document.getElementById("uploaded-image").style.display = "none";
         document.getElementById("webcam-container").innerHTML = "";
         document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+        labelContainer = document.getElementById("label-container");
+        labelContainer.innerHTML = "";
+
+        for (let i = 0; i < maxPredictions; i++) {
+            labelContainer.appendChild(document.createElement("div"));
+        }
     }
 
     async function loop() {
         if (!isRunning) return;
+
         webcam.update();
-        await predict(webcam.canvas);
+        await predict();
         window.requestAnimationFrame(loop);
     }
 
-    async function predict(imageSource) {
-        const prediction = await model.predict(imageSource);
+    async function predict() {
+        const prediction = await model.predict(webcam.canvas);
         for (let i = 0; i < maxPredictions; i++) {
             labelContainer.childNodes[i].innerHTML =
                 prediction[i].className + ": " +
@@ -124,24 +110,13 @@ html_code = """
 
     function stopWebcam() {
         if (!isRunning) return;
+
         isRunning = false;
         webcam.stop();
+
         document.getElementById("webcam-container").innerHTML = "";
-        labelContainer.innerHTML = "<em>Webcam stopped</em>";
-    }
-
-    async function handleImageUpload(event) {
-        await loadModel();
-
-        stopWebcam();
-
-        const img = document.getElementById("uploaded-image");
-        img.src = URL.createObjectURL(event.target.files[0]);
-        img.style.display = "block";
-
-        img.onload = async () => {
-            await predict(img);
-        };
+        document.getElementById("label-container").innerHTML =
+            "<em>Webcam stopped</em>";
     }
 </script>
 
@@ -149,4 +124,5 @@ html_code = """
 </html>
 """
 
-components.html(html_code, height=750)
+# Render HTML inside Streamlit
+components.html(html_code, height=600)
