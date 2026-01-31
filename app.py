@@ -37,13 +37,12 @@ with tab1:
             body {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                 background: #fafafa;
-                color: #111;
                 margin: 0;
                 padding: 20px;
             }
 
             .card {
-                background: #ffffff;
+                background: white;
                 border-radius: 12px;
                 padding: 24px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06);
@@ -55,10 +54,9 @@ with tab1:
             h3 {
                 margin-top: 0;
                 margin-bottom: 20px;
-                font-size: 20px;
-                font-weight: 600;
             }
 
+            /* START BUTTON */
             button {
                 padding: 10px 18px;
                 font-size: 14px;
@@ -66,10 +64,16 @@ with tab1:
                 border: none;
                 cursor: pointer;
                 margin: 6px;
-                background: #111827;
-                color: white;
+                background: #86efac;   /* light green */
+                color: #065f46;
+                font-weight: 600;
             }
 
+            button:hover {
+                background: #6ee7b7;
+            }
+
+            /* STOP BUTTON */
             button.secondary {
                 background: #e5e7eb;
                 color: #111827;
@@ -79,10 +83,10 @@ with tab1:
                 padding: 10px 14px;
                 margin: 8px 0;
                 border-radius: 8px;
-                background: #f3f4f6;
                 display: flex;
                 justify-content: space-between;
                 font-size: 14px;
+                background: #f3f4f6;
             }
 
             .confidence {
@@ -116,60 +120,78 @@ with tab1:
         <script>
             const URL = "https://teachablemachine.withgoogle.com/models/X17Jat3V8/";
 
-            let model, webcam, labelContainer, maxPredictions;
+            let model, webcam, labelContainer;
             let running = false;
 
             async function startWebcam() {
                 if (running) return;
 
-                const modelURL = URL + "model.json";
-                const metadataURL = URL + "metadata.json";
-
-                model = await tmImage.load(modelURL, metadataURL);
-                maxPredictions = model.getTotalClasses();
+                model = await tmImage.load(
+                    URL + "model.json",
+                    URL + "metadata.json"
+                );
 
                 webcam = new tmImage.Webcam(224, 224, true);
                 await webcam.setup();
                 await webcam.play();
 
                 running = true;
-                window.requestAnimationFrame(loop);
-
                 document.getElementById("webcam-container").innerHTML = "";
                 document.getElementById("webcam-container").appendChild(webcam.canvas);
 
                 labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = "";
+
+                loop();
             }
 
             async function loop() {
                 if (!running) return;
                 webcam.update();
                 await predict();
-                window.requestAnimationFrame(loop);
+
+                setTimeout(() => {
+                    requestAnimationFrame(loop);
+                }, 500); // slow down prediction
             }
 
             async function predict() {
                 const prediction = await model.predict(webcam.canvas);
-
                 labelContainer.innerHTML = "";
 
                 prediction
                     .sort((a, b) => b.probability - a.probability)
                     .forEach(p => {
                         const row = document.createElement("div");
+
+                        let bg = "#f3f4f6";
+                        let color = "#111827";
+
+                        if (p.className.toLowerCase().includes("clean")) {
+                            bg = "#dbeafe";   // light blue
+                            color = "#1e40af";
+                        }
+
+                        if (p.className.toLowerCase().includes("messy")) {
+                            bg = "#fef9c3";   // light yellow
+                            color = "#854d0e";
+                        }
+
+                        row.style.background = bg;
+                        row.style.color = color;
+
                         row.innerHTML = `
                             <span>${p.className}</span>
                             <span class="confidence">${(p.probability * 100).toFixed(1)}%</span>
                         `;
+
                         labelContainer.appendChild(row);
                     });
             }
 
             function stopWebcam() {
-                if (!running) return;
                 running = false;
-                webcam.stop();
+                if (webcam) webcam.stop();
                 document.getElementById("webcam-container").innerHTML = "";
                 document.getElementById("label-container").innerHTML = "<div class='muted'>Webcam stopped</div>";
             }
@@ -178,7 +200,7 @@ with tab1:
     </html>
     """
 
-    components.html(webcam_html, height=550)
+    components.html(webcam_html, height=560)
 
 # ==================================================
 # TAB 2 — IMAGE UPLOAD
@@ -189,7 +211,7 @@ with tab2:
     uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
 
     if uploaded_file:
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns(2)
 
         with col1:
             image = Image.open(uploaded_file)
@@ -209,7 +231,6 @@ with tab2:
                     body {{
                         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                         background: #fafafa;
-                        margin: 0;
                         padding: 20px;
                     }}
 
@@ -222,17 +243,10 @@ with tab2:
                         margin: auto;
                     }}
 
-                    h3 {{
-                        margin-top: 0;
-                        font-size: 18px;
-                        text-align: center;
-                    }}
-
                     #label-container div {{
                         padding: 10px 14px;
                         margin: 8px 0;
                         border-radius: 8px;
-                        background: #f3f4f6;
                         display: flex;
                         justify-content: space-between;
                         font-size: 14px;
@@ -241,19 +255,13 @@ with tab2:
                     .confidence {{
                         font-weight: 600;
                     }}
-
-                    .muted {{
-                        color: #6b7280;
-                        font-size: 13px;
-                        text-align: center;
-                    }}
                 </style>
             </head>
 
             <body>
                 <div class="card">
-                    <h3>Prediction</h3>
-                    <div id="label-container" class="muted">Analyzing…</div>
+                    <h3 style="text-align:center;">Prediction</h3>
+                    <div id="label-container">Analyzing…</div>
                 </div>
 
                 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
@@ -280,10 +288,28 @@ with tab2:
                             .sort((a, b) => b.probability - a.probability)
                             .forEach(p => {{
                                 const row = document.createElement("div");
+
+                                let bg = "#f3f4f6";
+                                let color = "#111827";
+
+                                if (p.className.toLowerCase().includes("clean")) {{
+                                    bg = "#dbeafe";
+                                    color = "#1e40af";
+                                }}
+
+                                if (p.className.toLowerCase().includes("messy")) {{
+                                    bg = "#fef9c3";
+                                    color = "#854d0e";
+                                }}
+
+                                row.style.background = bg;
+                                row.style.color = color;
+
                                 row.innerHTML = `
                                     <span>${{p.className}}</span>
                                     <span class="confidence">${{(p.probability * 100).toFixed(1)}}%</span>
                                 `;
+
                                 container.appendChild(row);
                             }});
                     }}
@@ -294,7 +320,7 @@ with tab2:
             </html>
             """
 
-            components.html(upload_html, height=450)
+            components.html(upload_html, height=460)
 
     else:
         st.info("Upload an image to begin")
