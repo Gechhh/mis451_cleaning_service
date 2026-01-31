@@ -64,7 +64,7 @@ with tab1:
                 border: none;
                 cursor: pointer;
                 margin: 6px;
-                background: #86efac;   /* light green */
+                background: #86efac;
                 color: #065f46;
                 font-weight: 600;
             }
@@ -122,6 +122,7 @@ with tab1:
 
             let model, webcam, labelContainer;
             let running = false;
+            let frameCount = 0;
 
             async function startWebcam() {
                 if (running) return;
@@ -136,6 +137,8 @@ with tab1:
                 await webcam.play();
 
                 running = true;
+                frameCount = 0;
+
                 document.getElementById("webcam-container").innerHTML = "";
                 document.getElementById("webcam-container").appendChild(webcam.canvas);
 
@@ -147,12 +150,16 @@ with tab1:
 
             async function loop() {
                 if (!running) return;
-                webcam.update();
-                await predict();
 
-                setTimeout(() => {
-                    requestAnimationFrame(loop);
-                }, 500); // slow down prediction
+                webcam.update();
+                frameCount++;
+
+                // Predict every 10 frames (~6 times per second)
+                if (frameCount % 10 === 0) {
+                    await predict();
+                }
+
+                requestAnimationFrame(loop);
             }
 
             async function predict() {
@@ -168,12 +175,12 @@ with tab1:
                         let color = "#111827";
 
                         if (p.className.toLowerCase().includes("clean")) {
-                            bg = "#dbeafe";   // light blue
+                            bg = "#dbeafe";
                             color = "#1e40af";
                         }
 
                         if (p.className.toLowerCase().includes("messy")) {
-                            bg = "#fef9c3";   // light yellow
+                            bg = "#fef9c3";
                             color = "#854d0e";
                         }
 
@@ -193,7 +200,8 @@ with tab1:
                 running = false;
                 if (webcam) webcam.stop();
                 document.getElementById("webcam-container").innerHTML = "";
-                document.getElementById("label-container").innerHTML = "<div class='muted'>Webcam stopped</div>";
+                document.getElementById("label-container").innerHTML =
+                    "<div class='muted'>Webcam stopped</div>";
             }
         </script>
     </body>
