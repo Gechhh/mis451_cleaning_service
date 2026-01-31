@@ -8,13 +8,13 @@ from io import BytesIO
 # Page config
 # --------------------------------------------------
 st.set_page_config(
-    page_title="Teachable Machine",
-    page_icon="🎯",
+    page_title="Room Cleanliness Detection Application",
+    page_icon="🧹",
     layout="centered"
 )
 
-st.title("Teachable Machine")
-st.caption("Minimal image classification demo")
+st.title("Room Cleanliness Detection Application")
+st.caption("An AI-powered system to verify room cleanliness using image classification")
 
 # --------------------------------------------------
 # Tabs
