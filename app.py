@@ -75,19 +75,20 @@ html_code = """
     let model, webcam, labelContainer, maxPredictions;
     let isRunning = false;
 
-    async function loadModel() {
-        if (model) return;
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
+  async function handleImageUpload(event) {
+    await loadModel();   // Load model if not already loaded
 
-        labelContainer = document.getElementById("label-container");
-        labelContainer.innerHTML = "";
-        for (let i = 0; i < maxPredictions; i++) {
-            labelContainer.appendChild(document.createElement("div"));
-        }
-    }
+    stopWebcam();        // Stop webcam if running
+
+    const img = document.getElementById("uploaded-image");
+    img.src = URL.createObjectURL(event.target.files[0]);
+    img.style.display = "block";
+
+    img.onload = async () => {
+        await predict(img);  // ✅ Here the uploaded image is sent to the model
+    };
+}
+
 
     async function startWebcam() {
         if (isRunning) return;
